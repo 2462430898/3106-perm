@@ -1,22 +1,36 @@
 name: Build unsigned IPA
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15-intel
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Unzip source
+      - uses: actions/checkout@v4
+
+      - name: Unpack source
         run: unzip -q 3106-src.zip
+
       - name: Build
-        run: xcodebuild -project 3106.xcodeproj -scheme 3106 -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-      - name: Package IPA
+        working-directory: 3106src
         run: |
+          xcodebuild -version
+          xcodebuild -project ThreeOneOSSix.xcodeproj -scheme 3106 \
+            -configuration Release -sdk iphoneos \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package unsigned IPA
+        working-directory: 3106src
+        run: |
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/3106.app"
           mkdir -p Payload
-          cp -r build/Release-iphoneos/3106.app Payload/
-          zip -r 3106.ipa Payload
-      - name: Upload IPA
+          cp -R "$APP" Payload/
+          zip -qry "3106-3.1.13-perm-unsigned.ipa" Payload
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: 3106-unsigned-ipa
-          path: 3106.ipa
+          path: 3106src/3106-3.1.13-perm-unsigned.ipa
